@@ -1,0 +1,18 @@
+[project]
+name = "sniff"
+version = "0.1.0"
+description = "Capture app traffic through mitmproxy and extract the API calls you care about into clean JSON."
+readme = "README.md"
+authors = [{ name = "Mohit Nalavadi" }]
+requires-python = ">=3.13"
+dependencies = [
+    "mitmproxy>=12.2.3",
+    "rich>=13.9",
+]
+
+[project.scripts]
+sniff-extract = "sniff.extract:main"
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"
