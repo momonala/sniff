@@ -11,9 +11,23 @@ from rich.console import Console
 from rich.table import Table
 
 from sniff.filters import DEFAULT_HOSTS_FILE, load_hosts, matches
+from sniff.proto import decode as decode_proto
 
 DEFAULT_INPUT = Path(__file__).parents[2] / "data" / "raw" / "capture.flow"
 DEFAULT_OUTPUT = Path(__file__).parents[2] / "data" / "processed" / "flows.json"
+
+
+def _body(message) -> object:
+    """Text for text bodies; a decoded field-number tree for protobuf (or anything that parses as it)."""
+    if message is None:
+        return None
+    raw = message.get_content(strict=False) or b""
+    if not raw:
+        return ""
+    try:
+        return {"protobuf": decode_proto(raw)}
+    except ValueError:
+        return message.get_text(strict=False)
 
 
 def extract(input_path: Path, output_path: Path, hosts: set[str]) -> list[dict]:
@@ -27,10 +41,10 @@ def extract(input_path: Path, output_path: Path, hosts: set[str]) -> list[dict]:
                     "url": flow.request.pretty_url,
                     "method": flow.request.method,
                     "request_headers": dict(flow.request.headers),
-                    "request_body": flow.request.get_text(strict=False),
+                    "request_body": _body(flow.request),
                     "response_status": flow.response.status_code if flow.response else None,
                     "response_headers": dict(flow.response.headers) if flow.response else None,
-                    "response_body": flow.response.get_text(strict=False) if flow.response else None,
+                    "response_body": _body(flow.response),
                 }
             )
 

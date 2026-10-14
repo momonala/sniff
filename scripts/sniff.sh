@@ -15,4 +15,7 @@ mkdir -p "$(dirname "$OUT")"
 
 echo "writing capture to $OUT"
 echo "proxy: $(ipconfig getifaddr en0 2>/dev/null || echo '<this machine>'):8080"
-exec uv run --project "$REPO_ROOT" mitmdump -w "$OUT" "$@"
+TLS_LOG="$REPO_ROOT/data/raw/$NAME.tls-failures.txt"
+rm -f "$TLS_LOG"
+echo "TLS handshake failures (cert pinning) logged to $TLS_LOG"
+exec env SNIFF_TLS_LOG="$TLS_LOG" uv run --project "$REPO_ROOT" mitmdump -w "$OUT" -s "$REPO_ROOT/src/sniff/tlslog.py" "$@"

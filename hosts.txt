@@ -1,2 +1,3 @@
 # Hosts to keep when extracting. One per line. Prefix with '.' to match subdomains.
 # Run `./scripts/extract.sh --list-hosts` after a capture to see what's there.
+.flightyapp.com
