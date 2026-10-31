@@ -7,6 +7,7 @@ authors = [{ name = "Mohit Nalavadi" }]
 requires-python = ">=3.13"
 dependencies = [
     "mitmproxy>=12.2.3",
+    "qrcode>=8",
     "rich>=13.9",
 ]
 

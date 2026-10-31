@@ -7,6 +7,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from mitmproxy import io
+from mitmproxy.http import HTTPFlow
 from rich.console import Console
 from rich.table import Table
 
@@ -30,23 +31,28 @@ def _body(message) -> object:
         return message.get_text(strict=False)
 
 
+def _http_flows(input_path: Path):
+    """HTTP flows only; wireguard captures also hold DNS/UDP flows."""
+    with input_path.open("rb") as f:
+        yield from (flow for flow in io.FlowReader(f).stream() if isinstance(flow, HTTPFlow))
+
+
 def extract(input_path: Path, output_path: Path, hosts: set[str]) -> list[dict]:
     flows = []
-    with input_path.open("rb") as f:
-        for flow in io.FlowReader(f).stream():
-            if hosts and not matches(flow.request.pretty_host, hosts):
-                continue
-            flows.append(
-                {
-                    "url": flow.request.pretty_url,
-                    "method": flow.request.method,
-                    "request_headers": dict(flow.request.headers),
-                    "request_body": _body(flow.request),
-                    "response_status": flow.response.status_code if flow.response else None,
-                    "response_headers": dict(flow.response.headers) if flow.response else None,
-                    "response_body": _body(flow.response),
-                }
-            )
+    for flow in _http_flows(input_path):
+        if hosts and not matches(flow.request.pretty_host, hosts):
+            continue
+        flows.append(
+            {
+                "url": flow.request.pretty_url,
+                "method": flow.request.method,
+                "request_headers": dict(flow.request.headers),
+                "request_body": _body(flow.request),
+                "response_status": flow.response.status_code if flow.response else None,
+                "response_headers": dict(flow.response.headers) if flow.response else None,
+                "response_body": _body(flow.response),
+            }
+        )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w") as f:
@@ -74,9 +80,8 @@ def print_summary(flows: list[dict], output_path: Path) -> None:
 def list_hosts(input_path: Path) -> None:
     """Print every host seen in the capture, so you know what to put in hosts.txt."""
     counts: Counter[str] = Counter()
-    with input_path.open("rb") as f:
-        for flow in io.FlowReader(f).stream():
-            counts[flow.request.pretty_host] += 1
+    for flow in _http_flows(input_path):
+        counts[flow.request.pretty_host] += 1
     for host, n in counts.most_common():
         print(f"{n:6d}  {host}")
 
