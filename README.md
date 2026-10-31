@@ -85,7 +85,11 @@ data/              # gitignored: captures hold auth tokens / PII
    ./scripts/extract.sh data/raw/login.flow -o data/processed/login.json
    ```
    Each entry has `url, method, request_headers, request_body,
-   response_status, response_headers, response_body`. Bodies that parse as
+   response_status, response_headers, response_body`. A header that appears
+   more than once (`set-cookie`, say) is a list. `cookie` is always one
+   string joined with `"; "`, ready to replay: HTTP/2 apps send each cookie
+   as its own field, and joining them with `", "` makes servers reject the
+   request. Bodies that parse as
    protobuf come out as `{"protobuf": {<field number>: [values...], ...}}`
    trees (every field is a list, one entry per occurrence), with no `.proto`
    needed; everything else is text. A summary table of

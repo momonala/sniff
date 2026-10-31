@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from mitmproxy import io
-from mitmproxy.http import HTTPFlow
+from mitmproxy.http import Headers, HTTPFlow
 from rich.console import Console
 from rich.table import Table
 
@@ -31,6 +31,22 @@ def _body(message) -> object:
         return message.get_text(strict=False)
 
 
+def _headers(headers: Headers) -> dict[str, str | list[str]]:
+    """Repeated headers stay a list, except cookies, which are rejoined the way an HTTP/1.1 client sends them.
+
+    HTTP/2 clients split cookies across several `cookie` fields, and mitmproxy's `headers[name]` joins
+    those with ", ", which servers read as one mangled cookie.
+    """
+    out: dict[str, str | list[str]] = {}
+    for name in headers:
+        values = headers.get_all(name)
+        if name.lower() == "cookie":
+            out[name] = "; ".join(values)
+        else:
+            out[name] = values[0] if len(values) == 1 else values
+    return out
+
+
 def _http_flows(input_path: Path):
     """HTTP flows only; wireguard captures also hold DNS/UDP flows."""
     with input_path.open("rb") as f:
@@ -46,10 +62,10 @@ def extract(input_path: Path, output_path: Path, hosts: set[str]) -> list[dict]:
             {
                 "url": flow.request.pretty_url,
                 "method": flow.request.method,
-                "request_headers": dict(flow.request.headers),
+                "request_headers": _headers(flow.request.headers),
                 "request_body": _body(flow.request),
                 "response_status": flow.response.status_code if flow.response else None,
-                "response_headers": dict(flow.response.headers) if flow.response else None,
+                "response_headers": _headers(flow.response.headers) if flow.response else None,
                 "response_body": _body(flow.response),
             }
         )
